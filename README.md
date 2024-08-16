@@ -3,9 +3,9 @@
 ## Purpose
 This project creates a master PostgreSQL database, and a read-only replica. There are 2 PgBouncers to pool the connections, 1 for read-write operations (connecting to the master, port 6432), and 1 for read-only operations (connecting to the replica, port 6433)
 
-## Usage:
+## Usage
 
-### Create the structure
+### Create the structure:
 ```bash
 docker compose up
 ```
