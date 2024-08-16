@@ -5,7 +5,7 @@ This project creates a master PostgreSQL database, and a read-only replica. Ther
 
 ## Usage
 
-### Create the structure:
+### Create the cluster:
 ```bash
 docker compose up
 ```
@@ -18,4 +18,9 @@ psql "postgres://masteruser:masterpassword@localhost:6432/masterdb"
 ### Access Replica:
 ```bash
 psql "postgres://masteruser:masterpassword@localhost:6433/masterdb"
+```
+
+### Clean the cluster:
+```bash
+./clean.sh
 ```
