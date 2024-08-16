@@ -1,0 +1,84 @@
+services:
+  # Master PostgreSQL Database
+  postgres-master:
+    build: ./docker/postgres-master/
+    container_name: postgres-master
+    environment:
+      POSTGRES_USER: masteruser
+      POSTGRES_PASSWORD: masterpassword
+      POSTGRES_DB: masterdb
+      POSTGRES_HOST_AUTH_METHOD: md5 
+      POSTGRES_INITDB_ARGS: --auth=md5
+    volumes:
+      - postgres-master-data:/var/lib/postgresql/data
+      - ./configs/pg_hba.conf:/etc/pg_hba.conf
+      - ./configs/postgresql-master.conf:/etc/postgresql.conf
+      - ./init/master.sh:/docker-entrypoint-initdb.d/init.sh
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./shared/data/:/tmp/data
+    healthcheck:
+      test: ["CMD", "bash", "/backup.sh"]
+      interval: 4s
+      timeout: 40s
+      retries: 2
+    command: -c config_file=/etc/postgresql.conf -c hba_file=/etc/pg_hba.conf
+    restart: always
+    networks:
+      - postgres-network
+
+  # Replication PostgreSQL Database
+  postgres-replica:
+    build: ./docker/postgres/
+    container_name: postgres-replica
+    environment:
+      POSTGRES_PASSWORD: replicapassword
+      POSTGRES_DB: replicadb
+      POSTGRES_HOST_AUTH_METHOD: md5 
+      POSTGRES_INITDB_ARGS: --auth=md5
+      PGDATA: /tmp/data
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+      - ./configs/pg_hba.conf:/etc/pg_hba.conf
+      - ./configs/postgresql-replica.conf:/etc/postgresql.conf
+      - ./shared/data:/tmp/data
+    command: -c config_file=/etc/postgresql.conf -c hba_file=/etc/pg_hba.conf
+    restart: always
+    networks:
+      - postgres-network
+    depends_on:
+      postgres-master:
+        condition: service_healthy
+
+  # PgBouncer for Master PostgreSQL
+  pgbouncer-master:
+    build: "./docker/pgbouncer"
+    container_name: pgbouncer-master
+    environment:
+      DATABASE_URL: postgres://masteruser:masterpassword@postgres-master:5432/masterdb
+    ports:
+      - "6432:5432"
+    networks:
+      - postgres-network
+    depends_on:
+      - postgres-master
+
+  # PgBouncer for Replication PostgreSQL
+  pgbouncer-replica:
+    build: "./docker/pgbouncer"
+    container_name: pgbouncer-replica
+    environment:
+      DATABASE_URL: postgres://masteruser:masterpassword@postgres-replica:5432/masterdb
+    ports:
+      - "6433:5432"
+    networks:
+      - postgres-network
+    depends_on:
+      - postgres-replica
+
+volumes:
+  postgres-master-data:
+  postgres-replica-data:
+
+networks:
+  postgres-network:
+    driver: bridge
